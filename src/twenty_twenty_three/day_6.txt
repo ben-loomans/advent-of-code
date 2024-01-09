@@ -1,0 +1,6 @@
+a=\operatorname{floor}\left(\frac{t-\sqrt{t^{2}-4d}}{2}+1\right)
+b=\operatorname{ceil}\left(\frac{t+\sqrt{t^{2}-4d}}{2}-1\right)
+num ways to win = b - a + 1
+where t is time and d is distance.
+
+input was short enough to do by hand on desmos, but for completeness it should be done programmatically
