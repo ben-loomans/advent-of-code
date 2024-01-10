@@ -1,4 +1,4 @@
-use std::{fs::File, io::{BufReader, BufRead}, collections::{BinaryHeap, BTreeSet, BTreeMap}, ops::AddAssign};
+use std::{fs::File, io::{BufReader, BufRead}, collections::{BinaryHeap, BTreeMap}};
 use advent_of_code::solved::Solved;
 
 pub struct Solution {
@@ -6,11 +6,12 @@ pub struct Solution {
 }
 
 impl<'a> Solution {
-    fn parse(&self) -> City {
+    fn parse(&self, metric: (usize, usize)) -> City {
         let buf = BufReader::new(&self.input);
-        let mut city = City::new();
+        let mut city = City::new(metric);
 
         city.queue.push(Path {cost: 0, location: (0, 0), history: (Direction::Right, 0)});
+        //city.queue.push(Path {cost: 0, location: (0, 0), history: (Direction::Down, 0)});
 
         for (row, line) in buf.lines().enumerate() {
             let line = line.unwrap();
@@ -35,18 +36,27 @@ impl Solved for Solution {
     }
 
     fn part_one(&self) {
-        let mut city = self.parse();
+        let mut city = self.parse((0, 3));
         let output = city.find_path();
         println!("Shortest path = {output}");
     }
 
     fn part_two(&self) {
-        
+        let mut city = self.parse((4, 10));
+        let output = city.find_path();
+        println!("Shortest path = {output}");
+
+        /* let visit = city.get_visit_array(&Path {
+            cost: 0,
+            location: (0, 0),
+            history: (Direction::Down, 4),
+        });
+
+        println!("{:?}", visit); */
     }
 }
 
 type Location = (isize, isize);
-
 type Cost = usize;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -88,7 +98,7 @@ impl Path {
     fn step(&self, city: &City, dir: Direction) -> Option<Self> {
         let location = self.update_location(&dir);
         let cost = city.blocks.get(&location).and_then(|cost| Some(*cost + self.cost));
-        let history = self.update_history(dir);
+        let history = self.update_history(city, dir);
 
         if let (Some(history), Some(cost)) = (history, cost) {
             Some(
@@ -103,19 +113,14 @@ impl Path {
         }
     }
 
-    fn valid_direction(&self, dir: &Direction) -> bool {
-        let (prev_dir, steps) = &self.history;
-        match (prev_dir, dir) {
-            (s, o) if s == &o.reverse() => false,
-            (s, o) if s == o && steps >= &3 => false,
-            _ => true
-        }
+    fn valid_direction(&self, city: &City, dir: &Direction) -> bool {
+        city.get_visit_array(&self)[dir.index()] > 0
     }
 
-    fn update_history(&self, dir: Direction) -> Option<(Direction, usize)> {
+    fn update_history(&self, city: &City, dir: Direction) -> Option<(Direction, usize)> {
         let (prev_dir, steps) = &self.history;
 
-        if self.valid_direction(&dir) {
+        if self.valid_direction(&city, &dir) {
             if *prev_dir == dir {
                 Some((dir, *steps + 1))
             } else {
@@ -157,40 +162,39 @@ struct City {
     visited: BTreeMap<Location, [usize; 4]>,
     queue: BinaryHeap<Path>,
     finish: Location,
+    metric: (usize, usize),
 }
 
 impl City {
-    fn new() -> Self {
+    fn new(metric: (usize, usize)) -> Self {
         Self {
             blocks: BTreeMap::new(),
             visited: BTreeMap::new(),
             queue: BinaryHeap::new(),
-            finish: (0,0)
+            finish: (0,0),
+            metric
         }
     }
 
     fn find_path(&mut self) -> usize {
         let mut found = false;
         let mut cost = 0;
-        // println!("Finish = {:?}", self.finish);
 
         while !found {
-            // println!("{}", self.queue.len());
             for path in self.get_next_paths() {
                 if path.location == self.finish {
                     cost = path.cost;
                     found = true;
                 }
-                // print!("{:?}: {}, ", path.location, path.cost);
                 self.queue.push(path);
             }
-            // println!("");
         }
         
         cost
     }
 
     fn get_next_paths(&mut self) -> Vec<Path> {
+        //println!("test");
         let curr_path = self.queue.pop().unwrap();
         let mut new_paths = Vec::new();
 
@@ -199,26 +203,20 @@ impl City {
             new_paths.push(curr_path.step(&self, Direction::Down));
             new_paths.push(curr_path.step(&self, Direction::Left));
             new_paths.push(curr_path.step(&self, Direction::Right));
-        } else {
-            // println!("already visited {:?}", curr_path.location);
         }
 
         new_paths.into_iter().filter_map(|path| path).collect()
     }
 
     fn visited(&mut self, path: &Path) -> bool {
-        let dir = &path.history.0;
-
-        let mut visit = [0; 4];
-        visit[dir.index()] = path.history.1;
-        visit[dir.reverse().index()] = 3;
+        let visit = self.get_visit_array(path);
 
         if let Some(prev_visit) = self.visited.get_mut(&path.location) {
             let mut visited = true;
 
             for i in 0..4 {
-                visited &= prev_visit[i] <= visit[i];
-                prev_visit[i] = prev_visit[i].min(visit[i]);
+                visited &= visit[i] <= prev_visit[i];
+                prev_visit[i] = prev_visit[i].max(visit[i]);
             }
 
             visited
@@ -226,5 +224,21 @@ impl City {
             self.visited.insert(path.location, visit);
             false
         }
+    }
+
+    fn get_visit_array(&self, path: &Path) -> [usize; 4] {
+        let (min, max) = &self.metric;
+        let (dir, dist) = &path.history;
+
+        let mut visits = if dist < min {
+            [0; 4]
+        } else {
+            [*max; 4]
+        };
+
+        visits[dir.reverse().index()] = 0;
+        visits[dir.index()] = max - dist;
+
+        visits
     }
 }
