@@ -8,29 +8,24 @@ pub struct Solution {
 type Vertex = (isize, isize);
 
 impl Solution {
-    fn parse(&self) -> (Vec<Vertex>, isize) {
+    fn parse(&self) -> Vec<Instruction> {
         let buf = BufReader::new(&self.input);
 
-        let mut vertices = Vec::new();
-        let mut vertex = (0, 0);
-        vertices.push(vertex);
-
-        let mut perimeter = 0;
+        let mut instructions = Vec::new();
 
         for line in buf.lines() {
             let line = line.unwrap();
             let mut substring = line.split(' ');
             let direction = Direction::try_from(substring.next().unwrap()).unwrap();
             let steps: usize = substring.next().unwrap().parse().unwrap();
-            step_vertex(&mut vertex, direction, steps);
-            vertices.push(vertex.clone());
-
-            perimeter += steps;
+            instructions.push((direction, steps));
         }
 
-        (vertices, perimeter as isize)
+        instructions
     }
 }
+
+type Instruction = (Direction, usize);
 
 #[derive(Debug, PartialEq, Eq)]
 enum Direction {
@@ -54,13 +49,36 @@ impl TryFrom<&str> for Direction {
     }
 }
 
-fn step_vertex(vertex: &mut Vertex, dir: Direction, steps: usize) {
+fn step_vertex(vertex: &mut Vertex, instruction: Instruction) {
+    let (dir, steps) = instruction;
+
     match dir {
         Direction::Up => vertex.0 -= steps as isize,
         Direction::Down => vertex.0 += steps as isize,
         Direction::Left => vertex.1 -= steps as isize,
         Direction::Right => vertex.1 += steps as isize,
     }
+}
+
+fn get_area(instructions: Vec<Instruction>) -> isize {
+    let mut perimeter: isize = 0;
+    let mut vertex = (0, 0);
+    let mut vertices = Vec::new();
+
+    vertices.push(vertex);
+    for instruction in instructions {
+        perimeter += instruction.1 as isize;
+        step_vertex(&mut vertex, instruction);
+        vertices.push(vertex.clone());
+    }
+
+    let inner_area: isize = vertices.windows(2).map(|window| {
+        window[0].1 * window[1].0 - window[1].1 * window[0].0
+    }).sum();
+
+    let area = (inner_area + perimeter + 2) / 2;
+
+    area
 }
 
 impl Solved for Solution {
@@ -71,14 +89,8 @@ impl Solved for Solution {
     }
 
     fn part_one(&self) {
-        let (vertices, perimeter) = self.parse();
-
-        let inner_area: isize = vertices.windows(2).map(|window| {
-            window[0].1 * window[1].0 - window[1].1 * window[0].0
-        }).sum();
-
-        let area = (inner_area + perimeter + 2) / 2;
-
+        let instructions = self.parse();
+        let area = get_area(instructions);
         println!("{:?}", area);
     }
 
