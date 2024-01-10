@@ -8,9 +8,8 @@ pub struct Solution {
 type Vertex = (isize, isize);
 
 impl Solution {
-    fn parse(&self) -> Vec<Instruction> {
+    fn parse1(&self) -> Vec<Instruction> {
         let buf = BufReader::new(&self.input);
-
         let mut instructions = Vec::new();
 
         for line in buf.lines() {
@@ -23,6 +22,34 @@ impl Solution {
 
         instructions
     }
+
+    fn parse2(&self) -> Vec<Instruction> {
+        let buf = BufReader::new(&self.input);
+        let mut instructions = Vec::new();
+
+        for line in buf.lines() {
+            let line = line.unwrap();
+            let mut substrings: Vec<_> = line.split(' ').collect();
+            let hex = substrings[2];
+
+            instructions.push(process_hex(hex));
+        }
+
+        instructions
+    }
+}
+
+fn process_hex(hex: &str) -> Instruction {
+    let (steps, dir) = hex.strip_prefix("(#")
+        .unwrap()
+        .strip_suffix(')')
+        .unwrap()
+        .split_at(5);
+
+    let dir = Direction::try_from(dir).unwrap();
+    let steps = usize::from_str_radix(steps, 16).unwrap();
+
+    (dir, steps)
 }
 
 type Instruction = (Direction, usize);
@@ -44,6 +71,10 @@ impl TryFrom<&str> for Direction {
             "D" => Ok(Self::Down),
             "L" => Ok(Self::Left),
             "R" => Ok(Self::Right),
+            "0" => Ok(Self::Right),
+            "1" => Ok(Self::Down),
+            "2" => Ok(Self::Left),
+            "3" => Ok(Self::Up),
             _ => Err(())
         }
     }
@@ -89,12 +120,14 @@ impl Solved for Solution {
     }
 
     fn part_one(&self) {
-        let instructions = self.parse();
+        let instructions = self.parse1();
         let area = get_area(instructions);
-        println!("{:?}", area);
+        println!("area = {:?}", area);
     }
 
     fn part_two(&self) {
-        
+        let instructions = self.parse2();
+        let area = get_area(instructions);
+        println!("area = {:?}", area);
     }
 }
