@@ -29,7 +29,7 @@ impl Solution {
 
         for line in buf.lines() {
             let line = line.unwrap();
-            let mut substrings: Vec<_> = line.split(' ').collect();
+            let substrings: Vec<_> = line.split(' ').collect();
             let hex = substrings[2];
 
             instructions.push(process_hex(hex));
